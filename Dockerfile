@@ -1,6 +1,9 @@
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV DISPLAY=:0
+ENV HOME=/home/user
+ENV PERSIST=/persist
 
 RUN apt update && apt install -y \
     xfce4 \
@@ -12,32 +15,30 @@ RUN apt update && apt install -y \
     sudo \
     nano \
     wget \
-    curl
+    curl \
+    git \
+    unzip
 
 # Create user
 RUN useradd -m user && \
     echo "user:user" | chpasswd && \
     adduser user sudo
 
-# Setup VNC
+# Setup directories
+RUN mkdir -p /persist && chown -R user:user /persist
 RUN mkdir -p /home/user/.vnc
+
+# Copy scripts
 COPY startup.sh /home/user/.vnc/startup.sh
-RUN chmod +x /home/user/.vnc/startup.sh && chown -R user:user /home/user/.vnc
+COPY run.sh /run.sh
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY sync-persist.sh /usr/local/bin/sync-persist.sh
+
+RUN chmod +x /home/user/.vnc/startup.sh /run.sh /usr/local/bin/sync-persist.sh
 
 # Setup noVNC
 RUN mkdir -p /opt/novnc
 RUN cp -r /usr/share/novnc/* /opt/novnc
-
-# Copy supervisor config
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Add run script
-COPY run.sh /run.sh
-RUN chmod +x /run.sh
-
-# Persistent directory
-RUN mkdir -p /persist && chown -R user:user /persist
-VOLUME ["/persist"]
 
 EXPOSE 8080
 CMD ["/run.sh"]
